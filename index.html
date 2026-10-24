@@ -1,0 +1,679 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>VMR Run Log · Prototype 3</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: dispatch-board app. Sticky header with demo clock, three tabs, cards only for runs and stops. */
+:root{
+  --bg:#EEF0EC; --surface:#FFFFFF; --sunk:#E3E6E1; --line:#CDD2CB;
+  --fg:#1B231F; --muted:#5A6660;
+  --accent:#1F6B4A; --accent-ink:#FFFFFF; --accent-soft:#DCEDE3;
+  --warn:#9A5A00; --warn-soft:#FBEBCF; --bad:#A3322A; --bad-soft:#F7DEDA; --ok:#1F6B4A; --ok-soft:#DCEDE3;
+  --f-display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1C2320; --sunk:#232B28; --line:#34403B;
+  --fg:#E7ECE8; --muted:#9AA7A0;
+  --accent:#5FBF8E; --accent-ink:#0E1A14; --accent-soft:#1F3A2C;
+  --warn:#E8A84A; --warn-soft:#3A2D16; --bad:#F08A80; --bad-soft:#3D211E; --ok:#5FBF8E; --ok-soft:#1F3A2C;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1C2320; --sunk:#232B28; --line:#34403B;
+  --fg:#E7ECE8; --muted:#9AA7A0;
+  --accent:#5FBF8E; --accent-ink:#0E1A14; --accent-soft:#1F3A2C;
+  --warn:#E8A84A; --warn-soft:#3A2D16; --bad:#F08A80; --bad-soft:#3D211E; --ok:#5FBF8E; --ok-soft:#1F3A2C;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.hrow{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding-block:12px}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:26px;letter-spacing:.02em;margin:0;text-transform:uppercase}
+.brand span{color:var(--muted);font-size:12.5px}
+.clock{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.clock input{font-family:var(--f-mono);font-size:14px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+nav{display:flex;gap:4px;padding-bottom:0}
+nav button{font:600 13px var(--f-body);background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:8px 12px 9px;cursor:pointer}
+nav button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+nav button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding-block:20px 40px}
+.sample{font-size:12.5px;color:var(--muted);background:var(--sunk);border-radius:6px;padding:8px 12px;margin-bottom:18px}
+.sample b{color:var(--fg)}
+h2{font-family:var(--f-display);font-weight:600;font-size:21px;text-transform:uppercase;letter-spacing:.03em;margin:0 0 10px;text-wrap:balance}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:22px}
+.kpi{background:var(--surface);padding:12px 14px;min-width:0}
+.kpi .v{font-family:var(--f-display);font-weight:700;font-size:30px;line-height:1.1}
+.kpi .s{font-size:12px;color:var(--muted)}
+@media (max-width:640px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.runs{display:grid;gap:14px}
+.run{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.runhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.runhead .who{font-weight:600;font-size:15px;margin-right:auto}
+.runhead .who small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.n{background:var(--sunk);color:var(--muted)}
+.hos{display:flex;align-items:center;gap:10px;min-width:220px;flex:1 1 220px;max-width:340px}
+.bar{position:relative;flex:1;height:8px;background:var(--sunk);border-radius:4px;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:4px}
+.bar.warn i{background:var(--warn)} .bar.bad i{background:var(--bad)}
+.hos .t{font-size:12px;color:var(--muted);white-space:nowrap}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;padding:8px 14px;background:var(--sunk);white-space:nowrap}
+td{padding:9px 14px;border-top:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+td.r,th.r{text-align:right}
+.miss{color:var(--bad);font-weight:600}
+.layout2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.layout2{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+.field{display:grid;gap:4px;margin-bottom:12px}
+.field label{font-size:12px;font-weight:600;color:var(--muted)}
+input[type=text],input[type=number],input[type=time],select{font:14px var(--f-body);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);width:100%}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row > *{flex:1 1 140px;min-width:0}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{font:600 13px var(--f-body);padding:10px;border:0;background:var(--bg);color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"].tow{background:var(--ok-soft);color:var(--ok)}
+.seg button[aria-pressed="true"].live{background:var(--warn-soft);color:var(--warn)}
+.btn{font:600 14px var(--f-body);padding:11px 16px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.check{display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:8px}
+.check input{width:18px;height:18px;accent-color:var(--accent)}
+.stoplist{display:grid;gap:8px;margin-bottom:14px}
+.stop{display:flex;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.stop.cur{border-color:var(--accent);background:var(--accent-soft)}
+.stop .n{font-family:var(--f-display);font-weight:700;font-size:20px;width:22px;text-align:center;color:var(--muted)}
+.stop .info{flex:1;min-width:0}
+.stop .info b{display:block;font-size:13.5px}
+.stop .info span{font-size:12px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:13.5px;font-weight:500;z-index:20;max-width:calc(100% - 32px)}
+.calc{font-size:13px;background:var(--sunk);border-radius:6px;padding:10px 12px;margin:4px 0 14px}
+.calc div{display:flex;justify-content:space-between;gap:12px}
+.weekchart{display:grid;gap:8px;margin-top:8px}
+.wrow{display:grid;grid-template-columns:44px minmax(0,1fr) 54px;gap:10px;align-items:center;font-size:12.5px}
+.wbar{position:relative;height:18px;background:var(--sunk);border-radius:3px}
+.wbar i{position:absolute;top:0;bottom:0;left:0;border-radius:3px;background:var(--accent)}
+.wbar i.late{background:var(--warn)}
+.wbar .tick{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--bad)}
+.axis{display:grid;grid-template-columns:44px minmax(0,1fr) 54px;gap:10px;font-size:11px;color:var(--muted)}
+.axis div:nth-child(2){display:flex;justify-content:space-between}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px;max-width:70ch}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+@media (max-width:820px){.grid2{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:no-preference){.bar i,.wbar i{transition:width .3s ease}}
+/* Easy mode: bigger text and buttons */
+body{font-size:16px}
+nav{overflow-x:auto}
+nav button{font-size:15px;padding:12px 14px 13px;white-space:nowrap}
+.clock{font-size:14px}
+.help{font-size:15px;background:var(--accent-soft);color:var(--fg);border-radius:8px;padding:12px 14px;margin:0 0 18px;line-height:1.5}
+.label{font-size:13px}
+.kpi .s{font-size:13.5px}
+th{font-size:12px} td{font-size:14.5px;padding:11px 14px}
+.field label{font-size:15px;color:var(--fg)}
+.field .hint{font-size:13.5px;color:var(--muted)}
+input[type=text],input[type=number],input[type=time],select{font-size:17px;padding:12px}
+.seg button{font-size:16px;padding:14px 8px;line-height:1.3}
+.seg button small{display:block;font-weight:400;font-size:13px}
+.btn{font-size:17px;min-height:52px}
+.btn.primary{font-size:19px;min-height:62px;border-radius:10px}
+.check{font-size:16px} .check input{width:26px;height:26px}
+.stop .info b{font-size:15.5px} .stop .info span{font-size:13.5px}
+.calc{font-size:15px}
+.note{font-size:14px}
+.step{font-weight:700;color:var(--accent)}
+.photobtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;font:600 17px var(--f-body);border:2px dashed var(--line);border-radius:10px;background:var(--bg);color:var(--fg);cursor:pointer;margin:4px 0 12px}
+.photobtn input{display:none}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 12px}
+.thumbs img{width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.dirbtn{display:inline-flex;align-items:center;gap:6px;font:600 15px var(--f-body);color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:8px 12px;margin:-2px 0 14px}
+.mapbox{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:22px}
+.mapbox svg{width:100%;height:auto;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13.5px;color:var(--muted);padding:6px 4px 0}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font:600 16px var(--f-body);cursor:pointer;min-height:84px}
+.tile .ic{font-size:24px;line-height:1}
+.tile small{font-weight:400;font-size:13px;color:var(--muted)}
+.tile.later{opacity:.55}
+.logrow{display:flex;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);margin-bottom:8px}
+.logrow .ic{font-size:22px}
+.logrow .mid{flex:1;min-width:0}
+.logrow .mid b{display:block}
+.logrow .mid span{font-size:13.5px;color:var(--muted)}
+.logrow .amt{font-family:var(--f-mono);font-weight:600}
+.sheetbg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom,0px))}
+@media (min-width:700px){.sheetbg{align-items:center}.sheet{border-radius:16px}}
+.shhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.shhead h2{margin:0}
+.shhead .btn{min-height:40px;font-size:15px;padding:6px 14px}
+.bigimg{width:100%;border-radius:8px}
+.lock{max-width:380px;margin:30px auto;text-align:center}
+.lock .ic{font-size:44px}
+.bill{display:grid;grid-template-columns:auto minmax(0,1fr) 150px;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);margin-bottom:10px}
+@media (max-width:560px){.bill{grid-template-columns:auto minmax(0,1fr)}.bill .field{grid-column:1/-1}}
+.bill .field{margin:0}
+.bill .thumbs{margin:0}
+.bill .thumbs img{width:64px;height:64px;cursor:pointer}
+.nophoto{width:64px;height:64px;border-radius:6px;background:var(--sunk);display:grid;place-items:center;font-size:12px;color:var(--muted);text-align:center}
+.thumbs img{cursor:pointer}
+.sect{margin:26px 0 10px}
+ .whobar{display:flex;align-items:center;gap:10px;font-weight:600}
+.whobar .btn{min-height:40px;font-size:15px;padding:6px 14px}
+.login{max-width:440px;margin:24px auto}
+.login h2{text-align:center}
+.choice{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg);font:600 18px var(--f-body);cursor:pointer;margin-bottom:12px}
+.choice .ic{font-size:32px}
+.choice small{display:block;font-weight:400;font-size:14px;color:var(--muted)}
+.setup .row{align-items:end}
+.mini{min-height:40px!important;font-size:14px!important;padding:6px 12px!important}
+.toprow{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+footer{padding-block:6px 30px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.errbtn.has{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.errlist{display:grid;gap:10px;margin:12px 0}
+.err{border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:8px;padding:10px 12px;background:var(--bg)}
+.err.warn{border-left-color:var(--warn)}
+.err b{display:block}
+.err pre{white-space:pre-wrap;word-break:break-word;font:12px var(--f-mono);color:var(--muted);margin:6px 0 0;max-height:160px;overflow:auto}
+.errtools{display:flex;flex-wrap:wrap;gap:8px}
+.period{display:inline-grid;grid-auto-flow:column;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.period button{font:600 14px var(--f-body);padding:9px 14px;border:0;background:var(--surface);color:var(--muted);cursor:pointer}
+.period button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 16px}
+.filters select{width:auto}
+.hbars{display:grid;gap:10px}
+.hb{display:grid;grid-template-columns:110px minmax(0,1fr) 90px;gap:10px;align-items:center;font-size:14px}
+.hb .track{height:16px;background:var(--sunk);border-radius:4px;overflow:hidden;display:flex}
+.hb .track i{display:block;height:100%}
+.vbars{display:flex;align-items:flex-end;gap:10px;height:170px;padding-top:10px;overflow-x:auto}
+.vb{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:44px;flex:1}
+.vb .pair{display:flex;align-items:flex-end;gap:3px;height:130px}
+.vb .pair i{display:block;width:14px;border-radius:3px 3px 0 0}
+.vb span{font-size:12px;color:var(--muted)}
+.key{display:flex;gap:16px;font-size:13px;color:var(--muted);margin-top:8px}
+.key i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
+.document-card,.end-day-card{margin-top:18px;padding:16px;border:2px solid var(--accent);border-radius:12px;background:var(--surface)}
+.document-card{background:var(--accent-soft);margin-bottom:16px}
+.end-day-card{border-color:var(--line);border-top:4px solid var(--accent)}
+.card-eyebrow{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}
+.bill-photo-area{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px}
+.bill-photo-area .photobtn{margin-bottom:0}
+.bill-photo-area .thumbs{flex-wrap:wrap}
+.bill-photo-area .thumbs img{width:104px;height:132px;object-fit:contain;background:var(--bg)}
+.bill-placeholder{min-height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--muted);font-size:12px;margin-bottom:8px}
+.bill-placeholder>span:first-child{font-size:30px}
+.bill-double-check{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.bill-double-check .field{margin-bottom:4px}
+.required-label{display:inline-block;font-size:10px;border:1px solid var(--line);border-radius:4px;padding:1px 5px;margin-left:4px}
+.test-note{font-size:12px;line-height:1.5;color:var(--warn);background:var(--warn-soft);padding:8px 10px;border-radius:6px;margin:8px 0 12px}
+button:disabled{opacity:.5;cursor:not-allowed}
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="hrow">
+      <div class="brand"><h1>VMR Run Log</h1><span>Prototype 3 by Data Vibing</span></div>
+    </div>
+    <nav role="tablist">
+      <button role="tab" aria-selected="true" data-tab="driver">🚚 Driver</button>
+      <button role="tab" aria-selected="false" data-tab="owner">📊 Analytics</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="view-driver"></section>
+  <section id="view-owner" hidden></section>
+</main>
+<footer class="wrap"><button class="btn mini errbtn" id="errBtn">🐞 Error log (0)</button><span class="note" style="margin:0" id="verNote"></span></footer>
+<div class="sheetbg" id="sheetbg" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle"><div class="shhead"><h2 id="shTitle"></h2><button class="btn" id="shClose">Close</button></div><div id="shBody"></div></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div id="userError" role="alert" hidden style="position:fixed;top:12px;left:50%;transform:translateX(-50%);width:min(600px,94vw);box-sizing:border-box;z-index:9999;background:#fff1ed;color:#7c2012;border:2px solid #a63120;border-radius:12px;padding:16px;box-shadow:0 6px 30px #0004">
+<b id="userErrorTitle">Something needs your attention</b><p id="userErrorText"></p>
+<button class="btn mini" id="retrySave" hidden>Retry saving</button> <button class="btn mini" id="errorDetails">Error details</button> <button class="btn mini" id="dismissError">Dismiss</button></div>
+
+<script>
+/* ===== Error log: catches problems so you can see and fix them ===== */
+const APP_VERSION='prototype3-v4-test';
+// Temporary owner trial: retain required labels, but permit missing photos.
+const OWNER_TEST_MODE=true;
+const photoTestNote=()=>OWNER_TEST_MODE?'<p class="test-note">Test mode: photo upload is optional for now. The required label applies to the final workflow.</p>':'';
+let errs=[]; try{ const v=JSON.parse(localStorage.getItem('vmr-runlog-errors')||'[]'); if(Array.isArray(v)) errs=v.filter(x=>x&&typeof x.msg==='string'); }catch{}
+function logError(kind,msg,detail,level){
+  const tab=document.querySelector('nav [aria-selected="true"]');
+  errs.push({at:new Date().toLocaleString(),kind,level:level||'error',msg:String(msg??'Unknown problem').slice(0,400),detail:String(detail??'').slice(0,2000),tab:tab?tab.textContent.trim():'',ver:APP_VERSION});
+  errs=errs.slice(-50);
+  try{ localStorage.setItem('vmr-runlog-errors',JSON.stringify(errs)); }catch{}
+  updateErrBtn(); notifyUser(kind, String(msg||'Something went wrong. Try again or send the error details to the team.')); 
+}
+
+function notifyUser(title,message){
+ document.getElementById('userErrorTitle').textContent=title;
+ document.getElementById('userErrorText').textContent=message;
+ document.getElementById('userError').hidden=false;
+}
+document.getElementById('dismissError').onclick=()=>document.getElementById('userError').hidden=true;
+document.getElementById('errorDetails').onclick=()=>{document.getElementById('userError').hidden=true;openErrLog();};
+window.addEventListener('error',e=>logError('Crash',e.message,`${e.filename||''} line ${e.lineno||'?'}:${e.colno||'?'}\n${e.error&&e.error.stack||''}`));
+window.addEventListener('unhandledrejection',e=>logError('Crash (async)',e.reason&&e.reason.message||e.reason,e.reason&&e.reason.stack));
+function updateErrBtn(){ const b=document.getElementById('errBtn'); if(!b) return; b.textContent=`🐞 Error log (${errs.length})`; b.classList.toggle('has',errs.some(x=>x.level==='error')); }
+function errText(){ return `VMR Run Log error log\nVersion: ${APP_VERSION}\nDevice: ${navigator.userAgent}\nScreen: ${innerWidth}x${innerHeight}\n\n`+
+  (errs.length?errs.slice().reverse().map((x,i)=>`#${errs.length-i} [${x.level.toUpperCase()}] ${x.kind} · ${x.at} · tab: ${x.tab||'-'}\n${x.msg}${x.detail?'\n'+x.detail:''}`).join('\n\n'):'No problems logged.'); }
+function openErrLog(){
+  openSheet('🐞 Error log',`<p class="note" style="margin-top:0">Problems the app ran into, newest first. Tap <b>Copy all</b> and paste it to your team (or to Claude) to get it fixed.</p>
+    <div class="errtools"><button class="btn mini" id="eCopy">📋 Copy all</button><button class="btn mini" id="eTest">🧪 Make a test error</button><button class="btn mini" id="eClear">🗑️ Clear log</button></div>
+    <div class="errlist">${errs.length?errs.slice().reverse().map(x=>`<div class="err ${x.level==='warn'?'warn':''}"><b>${x.level==='warn'?'🟡':'🔴'} ${esc(x.kind)}: ${esc(x.msg)}</b><span class="note">${esc(x.at)} · ${esc(x.tab||'-')} · ${esc(x.ver)}</span>${x.detail?`<pre>${esc(x.detail)}</pre>`:''}</div>`).join(''):'<p class="note">✅ No problems logged.</p>'}</div>
+    <textarea id="eText" readonly style="width:100%;height:90px;font:12px var(--f-mono);display:none"></textarea>`);
+  $('#eCopy').onclick=async()=>{ const t=errText(); try{ await navigator.clipboard.writeText(t); toast('Copied. Paste it in a message.'); }
+    catch{ const ta=$('#eText'); ta.style.display='block'; ta.value=t; ta.focus(); ta.select(); toast('Copy blocked here. The text is selected below, copy it by hand.'); } };
+  $('#eTest').onclick=()=>{ closeSheet(); setTimeout(()=>{ throw new Error('This is a test error (you tapped the test button)'); },0); };
+  $('#eClear').onclick=()=>{ if(!confirm('Clear the error log?')) return; errs=[]; try{ localStorage.removeItem('vmr-runlog-errors'); }catch{} updateErrBtn(); openErrLog(); };
+}
+
+const FREE_MIN=120, RATE=75, WINDOW_MIN=14*60, PIN='1234', KEY='vmr-runlog-v2';
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+const toMin=t=>{ if(!t) return null; const [h,m]=t.split(':').map(Number); return h*60+m; };
+const fmt=m=>{ if(m==null) return '—'; m=Math.max(0,Math.round(m)); return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); };
+const dur=m=>{ m=Math.max(0,Math.round(m)); const h=Math.floor(m/60), mm=m%60; return h?`${h}h ${String(mm).padStart(2,'0')}m`:`${mm}m`; };
+const money=n=>'$'+(n||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>{const t=String(v??'').trim();if(!/^\d+(?:\.\d+)?$/.test(t))return null;const n=Number(t);return Number.isFinite(n)?n:null;};
+const newId=()=>Math.random().toString(36).slice(2,9);
+const dstr=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const today=()=>dstr(new Date());
+const nowMin=()=>{ const d=new Date(); return d.getHours()*60+d.getMinutes(); };
+const nice=ds=>new Date(ds+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+
+// Everything is saved on this phone until the database is connected
+let db={drivers:[],days:[],stops:[],logs:[]};
+let readBlocked=false, dirty=false;
+try{
+ const data=JSON.parse(localStorage.getItem(KEY)||'{}');
+ if(!data || typeof data!=='object' || Array.isArray(data)) throw new Error('Invalid saved data');
+ for(const key of ['drivers','days','stops','logs']) if(data[key]!==undefined && (!Array.isArray(data[key]) || data[key].some(x=>!x||typeof x!=='object'))) throw new Error('Invalid '+key+' data');
+ db=Object.assign(db,data);
+ db.stops.forEach(x=>{if(!Array.isArray(x.photos)) x.photos=[];});
+}catch(e){readBlocked=true;logError('Saved data could not be opened','Existing records were left untouched. Do not clear browser data. Send the error details to the team.',e.message);}
+function save(){
+ try{
+  if(readBlocked) throw new Error('Saved data could not be read; saving is blocked to protect existing records.');
+  localStorage.setItem(KEY,JSON.stringify(db));
+  dirty=false;document.getElementById('retrySave').hidden=true;
+  return true;
+ }catch(e){
+  dirty=true;document.getElementById('retrySave').hidden=readBlocked;
+  const t=document.getElementById('toast'); if(t)t.hidden=true;
+  logError('Changes NOT saved',readBlocked?e.message:'This browser could not save your changes or photos. Keep this tab open. Free device space or allow browser storage, then tap Retry saving. Do not clear this site’s data.',e.message);
+  return false;
+ }
+}
+document.getElementById('retrySave').onclick=()=>{if(save()){document.getElementById('userError').hidden=true;renderAll();toast('Changes saved in this browser.');}};
+function deliveryReady(s){return !!s.pod && Array.isArray(s.photos) && s.photos.some(p=>typeof p==='string'&&p.startsWith('data:image/'));}
+function deliveryNeeds(s){
+ const missing=[];
+ if(!['tow','live'].includes(s.type)) missing.push('Choose Tow and hook or Live unload in Step 1.');
+ if(!s.pod) missing.push('Tick “I got the signed delivery bill” in the Bill of delivery card.');
+ if(!OWNER_TEST_MODE && !s.photos?.some(p=>typeof p==='string'&&p.startsWith('data:image/'))) missing.push('Upload a clear photo of the signed delivery bill.');
+ return missing;
+}
+function updateCompletionHint(s, attempted=false){
+ const hint=document.getElementById('completionHint'); if(!hint)return;
+ const missing=deliveryNeeds(s);
+ hint.textContent=missing.length ? (attempted?'Cannot complete yet. ':'Before completing: ')+missing.join(' ') : 'Ready to complete.'+(OWNER_TEST_MODE?' Photos are optional during testing.':'');
+ hint.style.color=missing.length?'var(--bad)':'var(--ok)';
+}
+function finishDelivery(s){
+ const missing=deliveryNeeds(s);
+ if(missing.length){
+  updateCompletionHint(s,true);
+  notifyUser('Cannot complete delivery yet',missing.join(' '));
+  return false;
+ }
+ const previous=s.depart;s.depart=fmt(nowMin());
+ if(!save()){
+  s.depart=previous;
+  const hint=document.getElementById('completionHint');
+  if(hint){hint.textContent='Delivery was not completed because saving failed. Check the error message above.';hint.style.color='var(--bad)';}
+  return false;
+ }
+ document.getElementById('userError').hidden=true;
+ return true;
+}
+
+// Same log types as prototype 1
+const TYPES={
+  diesel:{label:'Diesel',icon:'⛽',money:true,hint:'Fuel + receipt'},
+  repair:{label:'Repair',icon:'🔧',money:true,hint:'Receipt + what was fixed'},
+  delay:{label:'Delay',icon:'⏱️',money:false,hint:'Stuck waiting or traffic'},
+  other:{label:'Other',icon:'🧾',money:true,hint:'Parking, tolls, other'}
+};
+const drv=id=>db.drivers.find(d=>d.id===id)||{name:'Unknown',truck:''};
+function dwell(s){ if(!s.arrive) return null; const end=s.depart?toMin(s.depart):(s.date===today()?nowMin():toMin(s.arrive)); return Math.max(0,end-toMin(s.arrive)); }
+function detention(s){ if(s.type!=='live') return 0; const w=dwell(s); return w==null?0:Math.max(0,w-FREE_MIN); }
+function dayMiles(day){ if(!day||day.odoStart==null) return 0; const odos=[day.odoEnd,...db.logs.filter(l=>l.driverId===day.driverId&&l.date===day.date).map(l=>l.odo)].filter(v=>v!=null); return odos.length?Math.max(0,Math.max(...odos)-day.odoStart):0; }
+function stopState(s){
+  if(s.depart) return detention(s)>0?{cls:'warn',text:'✅ Done (extra pay)'}:{cls:'ok',text:'✅ Done'};
+  if(s.type==='live') return detention(s)>0?{cls:'bad',text:'🔴 Waiting too long'}:{cls:'warn',text:'⏳ Being unloaded'};
+  return {cls:'warn',text:'📍 At this stop'};
+}
+function readPhoto(file){ return new Promise((ok,bad)=>{
+ if(!file || !file.type.startsWith('image/')) {bad(new Error('Choose an image file, such as JPEG or PNG.'));return;}
+ const img=new Image(), url=URL.createObjectURL(file);
+ const timer=setTimeout(()=>{URL.revokeObjectURL(url);bad(new Error('Photo loading timed out. Try a smaller JPEG or PNG.'));},20000);
+ img.onload=()=>{try{
+  const k=Math.min(1,2000/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*k));c.height=Math.max(1,Math.round(img.height*k));
+  const ctx=c.getContext('2d');if(!ctx)throw new Error('Photo processing is unavailable.');
+  ctx.drawImage(img,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',0.9));
+ }catch(e){bad(e);}finally{clearTimeout(timer);URL.revokeObjectURL(url);}};
+ img.onerror=()=>{clearTimeout(timer);URL.revokeObjectURL(url);bad(new Error('This photo could not be opened. Try a JPEG or PNG.'));};img.src=url;
+}); }
+const thumbs=list=>list&&list.length?`<div class="thumbs">${list.map(u=>`<img src="${u}" alt="Photo, tap to make bigger" data-big>`).join('')}</div>`:'';
+const photoBtn=(id,label,count)=>`<label class="photobtn">📷 ${count?'Add another photo':label}<input type="file" id="${id}" accept="image/*"></label>`;
+
+/* ================= DRIVER ================= */
+const driverDrafts=new Map();
+function getDriverDraft(driver,date){
+ const key=driver+':'+date;
+ if(!driverDrafts.has(key))driverDrafts.set(key,{odo0:'',odo1:'',pics:{odo0:[],odo1:[]}});
+ return driverDrafts.get(key);
+}
+function endDriverDay(day,reading,photo){
+ if(db.stops.some(s=>s.driverId===day.driverId&&s.date===day.date&&!s.depart)){
+  notifyUser('Finish the current stop first','Complete your current delivery, then use End my day after all driving is finished.');return false;
+ }
+ if(reading==null || !Number.isSafeInteger(reading) || reading<day.odoStart){
+  notifyUser('Check the final odometer','Enter a whole odometer number at least as high as the start-of-day reading.');return false;
+ }
+ if(!OWNER_TEST_MODE&&!photo){notifyUser('Odometer photo required','Add your final odometer photo before ending the day.');return false;}
+ const previous={...day};
+ Object.assign(day,{odoEnd:reading,endPhoto:photo||null,end:fmt(nowMin()),endedAt:Date.now()});
+ if(!save()){Object.keys(day).forEach(k=>delete day[k]);Object.assign(day,previous);return false;}
+ return true;
+}
+
+let me=null; try{ me=localStorage.getItem(KEY+'-me'); }catch{}
+function setMe(id){ me=id; try{ localStorage.setItem(KEY+'-me',id); }catch{} }
+function renderDriver(){
+  const el=$('#view-driver');
+  if(!db.drivers.length){
+    el.innerHTML=`<div class="panel lock" style="text-align:left"><div class="ic" style="text-align:center">🚚</div><h2 style="text-align:center">Welcome! Add yourself</h2><p class="note" style="text-align:center;margin:0 0 14px">You only do this once on this phone.</p>
+      <div class="field"><label for="nName">Your name</label><input id="nName" type="text"></div>
+      <div class="field"><label for="nTruck">Your truck</label><input id="nTruck" type="text" placeholder="Example: Truck 12"></div>
+      <button class="btn primary" id="addMe" style="width:100%">Save</button></div>`;
+    $('#addMe').onclick=addDriver; return;
+  }
+  if(!db.drivers.some(d=>d.id===me)) setMe(db.drivers[0].id);
+  const D=drv(me), t=today(), now=nowMin(), draft=getDriverDraft(me,t);
+  const day=db.days.find(d=>d.driverId===me&&d.date===t);
+  const myStops=db.stops.filter(s=>s.driverId===me&&s.date===t);
+  const open=myStops.find(s=>!s.depart);
+  const myLogs=db.logs.filter(l=>l.driverId===me&&l.date===t);
+  let h=`<p class="help">Follow the steps and tap the big green buttons. No sign-in needed.</p>
+  <div class="layout2"><div class="panel">
+    <div class="field"><label for="drv">Who's driving?</label><select id="drv">${db.drivers.map(d=>`<option value="${d.id}" ${d.id===me?'selected':''}>${esc(d.name)} · ${esc(d.truck)}</option>`).join('')}<option value="__new">＋ New driver</option></select></div>`;
+  if(!day){
+    h+=`<div class="field"><label for="odo0"><span class="step">Start of day:</span> Odometer reading (miles)</label><span class="hint">The miles number on the dashboard</span><input id="odo0" type="number" inputmode="numeric" placeholder="Example: 152340" value="${esc(draft.odo0)}"></div>
+      <div class="field" style="margin-bottom:0"><label>📷 Photo of the odometer <span class="hint">(required)</span></label></div><div id="slot-odo0">${photoBtn('odoPic0','Take or upload photo',draft.pics.odo0.length)}${thumbs(draft.pics.odo0)}</div>${photoTestNote()}
+      <button class="btn primary" id="startday" style="width:100%;margin-bottom:16px">Start my day</button>`;
+  } else h+=`<p class="note" style="margin-top:0">✅ Day started at ${day.start} · odometer ${day.odoStart.toLocaleString()} mi${day.odoEnd!=null?` · ended, ${dayMiles(day).toLocaleString()} miles`:''}</p>`;
+
+  if(day && !open && day.odoEnd==null){
+    h+=`<h2>Next stop</h2><div class="field"><label for="where">Where are you? <span class="hint">(warehouse or customer)</span></label><input id="where" type="text" placeholder="Example: Carson warehouse"></div>
+      <button class="btn primary" id="arrive" style="width:100%">✅ I'm here (${fmt(now)})</button>`;
+  }
+  if(open){
+    const w=dwell(open), d=detention(open);
+    h+=`<h2>Now: ${esc(open.name)}</h2>
+      <div class="field"><label><span class="step">Step 1:</span> What kind of stop is this?</label><div class="seg">
+        <button class="tow" aria-pressed="${open.type==='tow'}" data-type="tow">Tow and hook<small>Swap trailer and go</small></button>
+        <button class="live" aria-pressed="${open.type==='live'}" data-type="live">Live unload<small>Wait while they unload</small></button></div></div>
+      <div class="calc"><div><span>Got here</span><span class="num">${open.arrive}</span></div><div><span>Waiting so far</span><span class="num">${dur(w)}</span></div>
+        ${open.type==='live'?`<div><span>Free time left</span><span class="num">${dur(Math.max(0,FREE_MIN-w))}</span></div><div><span><b>Extra wait pay</b></span><span class="num"><b>${dur(d)} · ${money(d/60*RATE)}</b></span></div>`:''}</div>
+      <div class="field"><label for="seal"><span class="step">Step 2:</span> Seal number</label><span class="hint">The number on the seal on the trailer door</span><input id="seal" type="text" placeholder="SL-000000" value="${esc(open.seal)}"></div>
+      <section class="document-card" aria-labelledby="deliveryBillHeading">
+        <div class="card-eyebrow">Payment paperwork · this delivery</div>
+        <h2 id="deliveryBillHeading">📄 Bill of delivery</h2>
+        <p class="note" style="margin:0 0 12px">${esc(open.name)} · ${nice(open.date)}<br>Violetta uses the signed bill for Thursday payment.</p>
+        <label class="check"><input type="checkbox" id="pod" ${open.pod?'checked':''}> <span>I got the signed delivery bill</span></label>
+        <div class="field" style="margin-bottom:0"><label for="photo">Photo of the signed delivery bill <span class="required-label">Required</span></label><span class="hint">Include all pages. Check that the signature and numbers are readable.</span></div>
+        <div class="bill-photo-area">${open.photos.length?thumbs(open.photos):'<div class="bill-placeholder"><span aria-hidden="true">📄</span><b>Delivery bill photo</b><span>The picture will appear here.</span></div>'}
+        ${photoBtn('photo','Take or upload bill photo',open.photos.length)}</div>
+        ${photoTestNote()}
+        <div class="bill-double-check"><div class="label">Quick double-check · optional</div>
+          <div class="row" style="margin-top:8px">
+            <div class="field"><label for="billNumber">Bill / delivery number</label><input id="billNumber" type="text" maxlength="60" placeholder="Example: 001245" value="${esc(open.billNumber||'')}"></div>
+            <div class="field"><label for="bill">Amount on the bill ($)</label><input id="bill" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="${open.billAmt??''}"></div>
+          </div><span class="hint">Copy these from the bill to compare with the photo. Leave the amount blank if none is shown.</span>
+        </div>
+      </section>
+      <p id="completionHint" class="note" role="status" aria-live="polite" style="margin:10px 0;font-weight:600"></p>
+      <button type="button" class="btn primary" id="depart" aria-describedby="completionHint" style="width:100%;margin-top:6px">🚚 Complete delivery & leave (${fmt(now)})</button>`;
+  }
+  const done=myStops.filter(s=>s.depart);
+  if(done.length) h+=`<div class="label" style="margin:18px 0 6px">Stops done today</div><div class="stoplist">${done.map((s,k)=>{ const ss=stopState(s); return `<div class="stop"><div class="n">${k+1}</div><div class="info"><b>${esc(s.name)}</b><span>${s.arrive}–${s.depart}${s.billAmt!=null?' · '+money(s.billAmt):''}${s.photos.length?' · 📷 '+s.photos.length:''}</span></div><span class="pill ${ss.cls}">${ss.text}</span></div>`; }).join('')}</div>`;
+  if(day){
+    h+=`<section class="end-day-card" aria-labelledby="endDayHeading"><div class="card-eyebrow">After your last stop and all driving</div><h2 id="endDayHeading">🏁 End my day</h2>`;
+    if(day.odoEnd!=null){
+      h+=`<p class="note">✅ Day ended${day.end?' at '+esc(day.end):''}. Final odometer: <b>${day.odoEnd.toLocaleString()} mi</b> · ${dayMiles(day).toLocaleString()} miles today.</p>`;
+    }else{
+      h+=`<p class="note">Use this once you have completed your last delivery and finished driving for the day, including the return trip.</p>
+        ${open?'<p class="test-note">Finish the current delivery first. Then this button becomes available.</p>':''}
+        <div class="field"><label for="odo1">Final odometer reading (miles)</label><input id="odo1" type="number" inputmode="numeric" min="${day.odoStart}" step="1" value="${esc(draft.odo1)}" placeholder="Reading when you finish driving"></div>
+        <div class="field" style="margin-bottom:0"><label for="odoPic1">📷 Photo of the odometer <span class="hint">(required)</span></label></div>
+        <div id="slot-odo1">${photoBtn('odoPic1','Take or upload photo',draft.pics.odo1.length)}${thumbs(draft.pics.odo1)}</div>${photoTestNote()}
+        <button class="btn primary" id="endday" style="width:100%" ${open?'disabled aria-disabled="true"':''}>End my day</button>`;
+    }
+    h+='</section>';
+  }
+  h+=`</div><div class="panel"><h2>Log something</h2><div class="tiles">
+    ${Object.entries(TYPES).map(([k,T])=>`<button class="tile" data-log="${k}"><span class="ic">${T.icon}</span>${T.label}<small>${T.hint}</small></button>`).join('')}
+    <button class="tile later" id="accident"><span class="ic">🚨</span>Accident report<small>Coming soon</small></button></div>
+    <div class="label" style="margin-bottom:6px">Your logs today</div>
+    ${myLogs.length?myLogs.map(l=>logRow(l)).join(''):'<p class="note" style="margin:0">Nothing logged yet.</p>'}
+  </div></div>`;
+  el.innerHTML=h;
+
+  $('#drv').onchange=e=>{ if(e.target.value==='__new'){ newDriverSheet(); e.target.value=me; return; } setMe(e.target.value); renderDriver(); };
+  const pics=draft.pics;
+  ['odo0','odo1'].forEach(id=>{if($('#'+id))$('#'+id).oninput=e=>{draft[id]=e.target.value;};});
+  wireSlot('odo0','odoPic0',pics.odo0,1); wireSlot('odo1','odoPic1',pics.odo1,1);
+  if($('#startday')) $('#startday').onclick=()=>{ const v=num($('#odo0').value); if(v==null){ toast('Type the odometer number first.'); return; }
+    if(!OWNER_TEST_MODE&&!pics.odo0.length){ toast('Take a photo of the odometer first.'); return; }
+    db.days.push({id:newId(),driverId:me,date:t,start:fmt(nowMin()),odoStart:v,odoEnd:null,startPhoto:pics.odo0[0]||null,endPhoto:null}); toast('Day started. Drive safe!'); renderAll(); };
+  if($('#endday')) $('#endday').onclick=()=>{
+    if(!endDriverDay(day,num($('#odo1').value),pics.odo1[0]))return;
+    draft.odo1='';draft.pics.odo1=[];
+    toast('Day ended. Great work!'); renderAll();
+  };
+  if($('#arrive')) $('#arrive').onclick=()=>{ const n=$('#where').value.trim(); if(!n){ toast('Type where you are first.'); return; }
+    db.stops.push({id:newId(),driverId:me,date:t,name:n,arrive:fmt(nowMin()),depart:null,type:null,seal:'',pod:false,photos:[],billAmt:null}); toast('Arrived at '+n); renderAll(); };
+  if(open){
+    $$('.seg button').forEach(b=>b.onclick=()=>{ open.type=b.dataset.type; renderAll(); });
+    $('#seal').oninput=e=>{ open.seal=e.target.value.trim(); save(); };
+    $('#pod').onchange=e=>{ open.pod=e.target.checked; updateCompletionHint(open); save(); };
+    $('#billNumber').oninput=e=>{open.billNumber=e.target.value.trim();save();};
+    $('#bill').oninput=e=>{open.billAmt=num(e.target.value);save();};
+    $('#photo').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ open.photos.push(await readPhoto(f)); if(!save()) return; toast('📷 Delivery bill photo saved in this browser'); renderAll(); }catch(e){ logError('Photo not added',e?.message||'That photo could not be opened. Try JPEG or PNG.',e?.stack); } };
+    updateCompletionHint(open);
+    $('#depart').onclick=()=>{ if(!finishDelivery(open))return; const d=detention(open);
+      toast(d?`Left ${open.name}. Extra wait pay: ${dur(d)}, ${money(d/60*RATE)}`:`Left ${open.name} at ${open.depart}`); renderAll(); };
+  }
+  $$('[data-log]').forEach(b=>b.onclick=()=>openForm(b.dataset.log));
+  $('#accident').onclick=()=>toast('Accident report is coming in a later version.');
+}
+function addDriver(){ const n=$('#nName').value.trim(), tr=$('#nTruck').value.trim(); if(!n){ toast('Type your name.'); return; }
+  const id=newId(); db.drivers.push({id,name:n,truck:tr||'Truck'}); setMe(id); closeSheet(); toast('Welcome, '+n+'!'); renderAll(); }
+function newDriverSheet(){ openSheet('＋ New driver',`<div class="field"><label for="nName">Name</label><input id="nName" type="text"></div><div class="field"><label for="nTruck">Truck</label><input id="nTruck" type="text" placeholder="Example: Truck 12"></div><button class="btn primary" id="addMe" style="width:100%">Save</button>`); $('#addMe').onclick=addDriver; }
+function logRow(l,showDriver){ const T=TYPES[l.type], pics=[...(l.photos?.receipt||[]),...(l.photos?.odometer||[])];
+  const sub=[showDriver?nice(l.date):'', l.at, l.gal?l.gal+' gal':'', l.odo!=null?l.odo.toLocaleString()+' mi':'', l.type==='delay'&&l.from&&l.to?`${l.from}–${l.to} (${dur(toMin(l.to)-toMin(l.from))})`:'', l.where, l.note, l.personal?'Personal':''].filter(Boolean).map(esc).join(' · ');
+  return `<div class="logrow"><span class="ic">${T.icon}</span><div class="mid"><b>${showDriver?esc(drv(l.driverId).name)+': ':''}${T.label}</b><span>${sub}</span>${showDriver?thumbs(pics.slice(0,3)):(pics.length?`<span> · 📷 ${pics.length}</span>`:'')}</div>${T.money?`<span class="amt">${money(l.amt)}</span>`:''}</div>`; }
+
+// adds a photo to a slot without redrawing the page (keeps typed numbers); max = how many photos allowed
+function wireSlot(key,id,list,max){ const el=$('#'+id); if(!el) return; el.onchange=async e=>{ const f=e.target.files[0]; if(!f) return;
+  try{ const u=await readPhoto(f); if(max===1) list.length=0; list.push(u);
+    $('#slot-'+key).innerHTML=(max===1?`<label class="photobtn">📷 Retake photo<input type="file" id="${id}" accept="image/*"></label>`:photoBtn(id,'',list.length))+thumbs(list);
+    wireSlot(key,id,list,max); toast('📷 Photo added'); }catch(e){ logError('Photo not added',e?.message||'That photo could not be opened. Try JPEG or PNG.',e?.stack); } }; }
+
+/* ---------- log form (pop-up) ---------- */
+function openSheet(title,html){ $('#shTitle').textContent=title; $('#shBody').innerHTML=html; $('#sheetbg').hidden=false; }
+function closeSheet(){ $('#sheetbg').hidden=true; $('#shBody').innerHTML=''; }
+function openForm(type){
+  const T=TYPES[type], now=nowMin(), staged={receipt:[],odometer:[]};
+  let b='';
+  if(T.money) b+=`<div class="field"><label for="fAmt">Total paid ($)</label><input id="fAmt" type="number" inputmode="decimal" step="0.01" placeholder="0.00"></div>`;
+  if(type==='diesel') b+=`<div class="row"><div class="field"><label for="fGal">Gallons</label><input id="fGal" type="number" inputmode="decimal" step="0.1"></div><div class="field"><label for="fOdo">Odometer (miles)</label><input id="fOdo" type="number" inputmode="numeric"></div></div>`;
+  if(T.money) b+=`<div class="field" style="margin-bottom:0"><label>📄 Receipt (bill of payment)</label><span class="hint">Take a picture or upload one from your phone</span></div><div id="slot-receipt">${photoBtn('pReceipt','Take or upload receipt',0)}</div>`;
+  if(type==='diesel') b+=`<div class="field" style="margin-bottom:0"><label>📷 Photo of the odometer <span class="hint">(required)</span></label></div><div id="slot-odometer">${photoBtn('pOdometer','Take or upload photo',0)}</div>${photoTestNote()}`;
+  if(type==='delay') b+=`<div class="row"><div class="field"><label for="fFrom">Started</label><input id="fFrom" type="time" value="${fmt(now-60)}"></div><div class="field"><label for="fTo">Ended</label><input id="fTo" type="time" value="${fmt(now)}"></div></div>`;
+  b+=`<div class="field"><label for="fWhere">Where</label><input id="fWhere" type="text" placeholder="Station, warehouse or gate"></div>`;
+  b+=`<div class="field"><label for="fNote">${type==='repair'?'What was fixed':type==='other'?'What was it for':'Note (optional)'}</label><input id="fNote" type="text" placeholder="${type==='repair'?'Example: air line fitting':type==='other'?'Example: parking, tolls':''}"></div>`;
+  if(T.money) b+=`<label class="check"><input type="checkbox" id="fPersonal"> <span>Personal expense <span class="hint">(not counted in business totals)</span></span></label>`;
+  b+=`<button class="btn primary" id="fSave" style="width:100%;margin-top:8px">Save ${T.label.toLowerCase()}</button>`;
+  openSheet(`${T.icon} ${T.label}`,b);
+  const wire=(key,id)=>{ const el=$('#'+id); if(!el) return; el.onchange=async e=>{ const f=e.target.files[0]; if(!f) return;
+    try{ staged[key].push(await readPhoto(f)); $('#slot-'+key).innerHTML=photoBtn(id,'',staged[key].length)+thumbs(staged[key]); wire(key,id); toast('📷 Photo added'); }catch(e){ logError('Photo not added',e?.message||'That photo could not be opened.',e?.stack); } }; };
+  wire('receipt','pReceipt'); wire('odometer','pOdometer');
+  $('#fSave').onclick=()=>{
+    const amt=T.money?num($('#fAmt').value):null;
+    if(T.money&&!(amt>0)){ toast('Type how much you paid.'); return; }
+    if(type==='repair'&&!$('#fNote').value.trim()){ toast('Say what was fixed.'); return; }
+    if(type==='diesel'&&num($('#fOdo').value)==null){ toast('Type the odometer number.'); return; }
+    if(type==='diesel'&&!OWNER_TEST_MODE&&!staged.odometer.length){ toast('Take a photo of the odometer.'); return; }
+    db.logs.push({id:newId(),driverId:me,date:today(),type,at:fmt(now),amt,gal:type==='diesel'?num($('#fGal').value):null,odo:type==='diesel'?num($('#fOdo').value):null,
+      from:type==='delay'?$('#fFrom').value:null,to:type==='delay'?$('#fTo').value:null,
+      where:$('#fWhere').value.trim(),note:$('#fNote').value.trim(),personal:!!(T.money&&$('#fPersonal').checked),photos:staged});
+    if(!save()){db.logs.pop();return;} closeSheet(); toast(`${T.label} saved`); renderAll();
+  };
+}
+
+/* ================= OWNER: analytics, view + export only ================= */
+let unlocked=false, period='today', who='all';
+function inPeriod(ds){
+  const t=new Date(), d=new Date(ds+'T12:00');
+  if(period==='today') return ds===today();
+  if(period==='week'){ const mon=new Date(t); mon.setHours(0,0,0,0); mon.setDate(t.getDate()-((t.getDay()+6)%7)); return d>=mon; }
+  if(period==='month') return d.getFullYear()===t.getFullYear()&&d.getMonth()===t.getMonth();
+  return true;
+}
+function pick(){ const ok=x=>inPeriod(x.date)&&(who==='all'||x.driverId===who);
+  return {days:db.days.filter(ok),stops:db.stops.filter(ok),logs:db.logs.filter(ok)}; }
+function sums(P){
+  const exp={diesel:0,repair:0,other:0}; P.logs.forEach(l=>{ if(TYPES[l.type].money&&!l.personal) exp[l.type]+=l.amt||0; });
+  const bills=P.stops.reduce((a,s)=>a+(s.billAmt||0),0), wait=P.stops.reduce((a,s)=>a+detention(s),0)/60*RATE;
+  const expTot=exp.diesel+exp.repair+exp.other, rev=bills+wait;
+  return {exp,expTot,bills,wait,rev,miles:P.days.reduce((a,d)=>a+dayMiles(d),0),billCount:P.stops.filter(s=>s.billAmt!=null).length,gal:P.logs.reduce((a,l)=>a+(l.gal||0),0)};
+}
+function renderOwner(){
+  const el=$('#view-owner');
+  if(!unlocked){
+    el.innerHTML=`<div class="panel lock"><div class="ic">🔒</div><h2>Analytics</h2><p class="note" style="margin:0 0 14px">Enter the PIN to view revenue, expenses and delivery reports.</p>
+      <input id="pin" type="password" inputmode="numeric" maxlength="6" placeholder="PIN" style="text-align:center;font-size:22px;letter-spacing:.3em">
+      <button class="btn primary" id="unlock" style="width:100%;margin-top:12px">Open</button></div>`;
+    const go=()=>{ if($('#pin').value===PIN){ unlocked=true; renderOwner(); } else { toast('Wrong PIN. Try again.'); $('#pin').value=''; } };
+    $('#unlock').onclick=go; $('#pin').onkeydown=e=>{ if(e.key==='Enter') go(); };
+    return;
+  }
+  const P=pick(), S=sums(P), label={today:'today',week:'this week',month:'this month',all:'all time'}[period];
+  let h=`<div class="toprow"><p class="help" style="flex:1;margin:0">Hi Violetta 👋 Your business at a glance. This prototype shows records saved in this browser. Shared driver syncing is not connected.</p><button class="btn" id="lock">🔒 Lock</button></div>
+  <div class="filters"><div class="period" role="group" aria-label="Time period">${[['today','Today'],['week','This week'],['month','This month'],['all','All']].map(([k,v])=>`<button data-p="${k}" aria-pressed="${period===k}">${v}</button>`).join('')}</div>
+    <select id="who" aria-label="Driver"><option value="all">All drivers</option>${db.drivers.map(d=>`<option value="${d.id}" ${who===d.id?'selected':''}>${esc(d.name)}</option>`).join('')}</select>
+    <button class="btn mini" id="export" style="margin-left:auto">⬇️ Export to Excel</button></div>
+  <div class="kpis">
+    <div class="kpi"><div class="label">Miles driven</div><div class="v num">${S.miles.toLocaleString()}</div><div class="s">${label}</div></div>
+    <div class="kpi"><div class="label">Expenses</div><div class="v num">${money(S.expTot)}</div><div class="s">${S.gal?Math.round(S.gal*10)/10+' gal diesel':'business only'}</div></div>
+    <div class="kpi"><div class="label">Projected revenue</div><div class="v num">${money(S.rev)}</div><div class="s">${S.billCount} delivery bill${S.billCount===1?'':'s'}${S.wait?' + '+money(S.wait)+' wait pay':''}</div></div>
+    <div class="kpi"><div class="label">Estimated profit</div><div class="v num" style="color:${S.rev-S.expTot<0?'var(--bad)':'inherit'}">${money(S.rev-S.expTot)}</div><div class="s">revenue minus expenses</div></div>
+  </div>`;
+  // charts
+  const dates=[...new Set([...P.stops,...P.logs,...P.days].map(x=>x.date))].sort();
+  const perDay=dates.map(ds=>{ const Q={days:P.days.filter(x=>x.date===ds),stops:P.stops.filter(x=>x.date===ds),logs:P.logs.filter(x=>x.date===ds)}; return {ds,...sums(Q)}; });
+  const maxV=Math.max(1,...perDay.map(d=>Math.max(d.rev,d.expTot)));
+  const maxE=Math.max(1,S.exp.diesel,S.exp.repair,S.exp.other);
+  h+=`<div class="grid2"><div class="panel"><h2>Money by day</h2>${perDay.length?`<div class="vbars">${perDay.map(d=>`<div class="vb" title="${nice(d.ds)}: revenue ${money(d.rev)}, expenses ${money(d.expTot)}"><div class="pair"><i style="height:${d.rev/maxV*100}%;background:var(--accent)"></i><i style="height:${d.expTot/maxV*100}%;background:var(--warn)"></i></div><span>${nice(d.ds).split(',')[0]}</span></div>`).join('')}</div>
+      <div class="key"><span><i style="background:var(--accent)"></i>Revenue</span><span><i style="background:var(--warn)"></i>Expenses</span></div>`:'<p class="note">No data yet for this time.</p>'}</div>
+    <div class="panel"><h2>Where the money went</h2><div class="hbars">${['diesel','repair','other'].map(k=>`<div class="hb"><span>${TYPES[k].icon} ${TYPES[k].label}</span><div class="track"><i style="width:${S.exp[k]/maxE*100}%;background:var(--warn)"></i></div><span class="num" style="text-align:right">${money(S.exp[k])}</span></div>`).join('')}</div>
+      <p class="note">Personal expenses are left out.</p></div></div>`;
+  // by driver
+  if(who==='all'&&db.drivers.length){
+    h+=`<h2 class="sect">👥 By driver</h2><div class="panel" style="padding:0"><div class="tablewrap"><table><thead><tr><th>Driver</th><th class="r">Days</th><th class="r">Miles</th><th class="r">Stops</th><th class="r">Expenses</th><th class="r">Revenue</th><th class="r">Profit</th></tr></thead><tbody>
+      ${db.drivers.map(d=>{ const Q={days:P.days.filter(x=>x.driverId===d.id),stops:P.stops.filter(x=>x.driverId===d.id),logs:P.logs.filter(x=>x.driverId===d.id)}, T=sums(Q);
+        return `<tr><td>${esc(d.name)}<br><span style="color:var(--muted);font-size:13px">${esc(d.truck)}</span></td><td class="num r">${Q.days.length}</td><td class="num r">${T.miles.toLocaleString()}</td><td class="num r">${Q.stops.filter(s=>s.depart).length}</td><td class="num r">${money(T.expTot)}</td><td class="num r">${money(T.rev)}</td><td class="num r">${money(T.rev-T.expTot)}</td></tr>`; }).join('')}
+      </tbody></table></div></div>`;
+  }
+  // today's runs
+  const t=today(), todays=db.drivers.filter(d=>who==='all'||d.id===who);
+  h+=`<h2 class="sect">🚚 Today's runs</h2><div class="runs">${todays.length?todays.map(d=>{
+    const day=db.days.find(x=>x.driverId===d.id&&x.date===t), st=db.stops.filter(x=>x.driverId===d.id&&x.date===t);
+    const used=day?nowMin()-toMin(day.start):0, left=WINDOW_MIN-used;
+    return `<article class="run"><div class="runhead"><div class="who">${esc(d.name)} · ${esc(d.truck)}<small>${day?`Started ${day.start} · Must stop driving by ${fmt(toMin(day.start)+WINDOW_MIN)} · ${dayMiles(day).toLocaleString()} mi${day.odoEnd!=null?' · day ended':''}`:'Has not started today'}</small>${day?thumbs([day.startPhoto,day.endPhoto].filter(Boolean)):''}</div>
+      ${day?`<div class="hos"><div class="bar ${day.odoEnd!=null?'':left<=0?'bad':left<150?'warn':''}"><i style="width:${Math.min(100,used/WINDOW_MIN*100)}%"></i></div><span class="t num">${day.odoEnd!=null?'Done':left>0?dur(left)+' of driving left':'No driving time left'}</span></div>`:''}</div>
+      ${st.length?`<div class="tablewrap"><table><thead><tr><th>#</th><th>Stop</th><th>Got there</th><th>Left</th><th class="r">Waited</th><th class="r">Extra pay</th><th class="r">Bill</th><th>Paperwork</th><th>Status</th></tr></thead><tbody>
+      ${st.map((s,k)=>{ const w=dwell(s), dd=detention(s), ss=stopState(s);
+        return `<tr><td class="num">${k+1}</td><td>${esc(s.name)}${s.type?`<br><span style="color:var(--muted);font-size:13px">${s.type==='tow'?'Tow and hook':'Live unload'}</span>`:''}</td><td class="num">${s.arrive}</td><td class="num">${s.depart||'—'}</td><td class="num r">${w==null?'—':dur(w)}</td><td class="num r">${dd?money(dd/60*RATE):'—'}</td><td class="num r">${s.billAmt!=null?money(s.billAmt):'—'}</td>
+        <td class="${s.depart&&(!s.seal||!deliveryReady(s))?'miss':''}">${!s.depart?'—':(s.seal&&deliveryReady(s)?'✅ All in':'⚠️ Missing '+[!s.seal&&'seal #',!s.pod&&'signed bill confirmation',!s.photos.length&&'bill photo'].filter(Boolean).join(' + '))}${s.photos.length?' · 📷 '+s.photos.length:''}</td><td><span class="pill ${ss.cls}">${ss.text}</span></td></tr>`; }).join('')}
+      </tbody></table></div>`:'<p class="note" style="margin:0;padding:10px 14px">No stops yet today.</p>'}</article>`; }).join(''):'<p class="note">No drivers yet. Drivers add themselves on the 🚚 Driver tab.</p>'}</div>`;
+  // bills + expenses
+  const bills=P.stops.filter(s=>s.depart||s.photos.length||s.billAmt!=null).slice().reverse();
+  h+=`<h2 class="sect">📄 Delivery bills · Thursday payment paperwork</h2><p class="note">Each photo belongs to the delivery shown beside it. Tap every page to check readability. Choose All to find older bills. Paperwork ready does not mean payment received.</p>`+(bills.length?bills.map(s=>`<div class="bill" style="grid-template-columns:auto minmax(0,1fr) auto">${s.photos.length?thumbs(s.photos):'<div class="nophoto">No photo</div>'}
+      <div><b>${esc(s.name)}</b><br><strong>${deliveryReady(s)?'✅ Paperwork ready':'⚠️ Check signature confirmation / missing photo'}</strong><br><span class="note" style="margin:0">${esc(drv(s.driverId).name)} · ${nice(s.date)}${s.billNumber?' · Bill #'+esc(s.billNumber):''}${s.depart?' · left '+s.depart:''}${s.photos.length>1?' · '+s.photos.length+' photos':''}</span><label class="photobtn">📷 Add signed bill page<input type="file" accept="image/*" data-bill-upload="${esc(s.id)}"></label></div>
+      <div class="num" style="font-weight:600;font-size:17px">${s.billAmt!=null?money(s.billAmt):'<span class="note">No amount</span>'}</div></div>`).join(''):'<p class="note">No delivery bills yet for this time.</p>');
+  h+=`<h2 class="sect">🧾 Expenses and delays</h2>`+(P.logs.length?P.logs.slice().reverse().map(l=>logRow(l,true)).join(''):'<p class="note">Nothing logged for this time.</p>');
+  h+=`<p class="note">Extra wait pay ("detention") counts on live unloads after ${FREE_MIN/60} free hours, at $${RATE}/hr. These are guesses until VMR gives us the real numbers.</p>`;
+  el.innerHTML=h;
+  $('#lock').onclick=()=>{ unlocked=false; renderOwner(); };
+  $$('[data-p]').forEach(b=>b.onclick=()=>{ period=b.dataset.p; renderOwner(); });
+  $('#who').onchange=e=>{ who=e.target.value; renderOwner(); };
+  $('#export').onclick=exportCSV;
+  $$('[data-bill-upload]').forEach(input=>input.onchange=async()=>{
+    const file=input.files[0];if(!file)return;
+    const stop=db.stops.find(s=>s.id===input.dataset.billUpload);if(!stop)return;
+    input.disabled=true;
+    try{const photo=await readPhoto(file);stop.photos.push(photo);
+      if(!save())return;
+      toast('Bill photo attached to '+stop.name);renderOwner();
+    }catch(e){logError('Bill photo not added',e.message,e.stack);}
+    finally{input.disabled=false;input.value='';}
+  });
+}
+async function exportCSV(){
+  const P=pick(), q=v=>{ v=v==null?'':String(v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const rows=[['Date','Driver','Truck','Kind','Place','Details','Amount ($)','Gallons','Odometer','Arrived','Left','Waited (min)','Extra wait pay ($)','Seal #','Signed bill','Photos','Personal']];
+  P.days.forEach(d=>{ const D=drv(d.driverId); rows.push([d.date,D.name,D.truck,'Day','', 'Miles driven: '+dayMiles(d),'', '',d.odoStart+(d.odoEnd!=null?' to '+d.odoEnd:''),d.start,'','','','','','','']); });
+  P.stops.forEach(s=>{ const D=drv(s.driverId), dd=detention(s); rows.push([s.date,D.name,D.truck,'Delivery stop',s.name,[s.type==='tow'?'Tow and hook':s.type==='live'?'Live unload':'',s.billNumber?'Bill #'+s.billNumber:''].filter(Boolean).join(' · '),s.billAmt??'','','',s.arrive,s.depart||'',dwell(s)??'',dd?(dd/60*RATE).toFixed(2):'',s.seal,s.pod?'Yes':'No',s.photos.length,'']); });
+  P.logs.forEach(l=>{ const D=drv(l.driverId); rows.push([l.date,D.name,D.truck,TYPES[l.type].label,l.where,[l.note,l.type==='delay'&&l.from?l.from+'–'+l.to:''].filter(Boolean).join(' · '),l.amt??'',l.gal??'',l.odo??'',l.at,'','','','','',(l.photos.receipt.length+l.photos.odometer.length),l.personal?'Yes':'No']); });
+  const head=rows.shift(); rows.sort((a,b)=>String(a[0]+a[9]).localeCompare(String(b[0]+b[9]))); rows.unshift(head);
+  const csv='\ufeff'+rows.map(r=>r.map(q).join(',')).join('\r\n'), name=`vmr-runlog-${period}-${today()}.csv`;
+  if(rows.length===1){ toast('Nothing to export for this time.'); return; }
+  try{ const dl=window.claude?.use?await window.claude.use('downloads'):null;
+    if(dl){ await dl.save({filename:name,data:csv}); return; } }catch(e){ if(e&&e.code==='declined') return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  toast('Exported. Open it with Excel or Google Sheets.');
+}
+
+/* ================= shared ================= */
+function renderAll(){
+  if(!save()) return;
+  try{ renderDriver(); }catch(e){ logError('Driver screen',e.message,e.stack); $('#view-driver').innerHTML='<div class="panel"><b>⚠️ This screen hit a problem.</b><p class="note">Tap 🐞 Error log at the bottom and send it to the team.</p></div>'; }
+  try{ renderOwner(); }catch(e){ logError('Analytics screen',e.message,e.stack); $('#view-owner').innerHTML='<div class="panel"><b>⚠️ This screen hit a problem.</b><p class="note">Tap 🐞 Error log at the bottom and send it to the team.</p></div>'; }
+}
+let tt; function toast(m){ const t=$('#toast'); t.textContent=m; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,2800); }
+document.addEventListener('click',e=>{ const im=e.target.closest('img[data-big]'); if(im) openSheet('Delivery document / photo',`<p class="note">Check that all text and signatures are readable.</p><a class="btn" href="${im.src}" download="VMR-document.jpg">Download photo</a><img class="bigimg" src="${im.src}" alt="Document photo">`); });
+$('#errBtn').onclick=openErrLog; $('#verNote').textContent='Version '+APP_VERSION; updateErrBtn();
+$('#shClose').onclick=closeSheet; $('#sheetbg').onclick=e=>{ if(e.target.id==='sheetbg') closeSheet(); };
+$$('nav button').forEach(b=>b.onclick=()=>{ $$('nav button').forEach(x=>x.setAttribute('aria-selected',x===b)); ['driver','owner'].forEach(v=>$('#view-'+v).hidden=v!==b.dataset.tab); });
+// Keep error notices visible until dismissed.
+// keep wait timers fresh, but never while someone is typing
+setInterval(()=>{ if($('#sheetbg').hidden && !document.activeElement.matches('input,select,textarea')) renderAll(); },30000);
+renderAll();
+</script>
+
+</body></html>
